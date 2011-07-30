@@ -1,0 +1,820 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+#**************************************************************************
+#                                                                         *
+#   Copyright (c) 2010 by Elfriede Apfelkuchen                            *
+#                                                                         *
+#   This program is free software: you can redistribute it and/or modify  *
+#   it under the terms of the GNU General Public License as published by  *
+#   the Free Software Foundation, either version 3 of the License, or     *
+#   (at your option) any later version.                                   *
+#                                                                         *
+#   This program is distributed in the hope that it will be useful,       *
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+#   GNU General Public License for more details.                          *
+#                                                                         *
+#   You should have received a copy of the GNU General Public License     *
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+#                                                                         *
+#**************************************************************************
+
+helpfunctiontext = """umts-panel version 0.3.0.3
+
+ for debugging use menu point "Information".
+
+if you edit /etc/wvdial.conf by hand, in the "/etc/wvdial.conf" Tab,
+then you must press [Apply] in the "/etc/wvdial.conf" Tab!
+
+you must click the [x] PIN = XXXX checkbox to enable PIN sending!  
+
+wvdial autodetects DNS-Server settings, if autodetect fails,
+click the [x] DNS: checkbox and enter DNS-Server IP address.
+(or put the DNS-Server IP address in /etc/resolv.conf) 
+
+possible Phone settings:
+
+Phone = *99#
+Phone = *9***1#
+Phone = *99***1#
+Phone = *99**1*1#
+
+If [search modem] doesn't work you need usb_modemswitch:
+some USB-UMTS-Sticks need to be switched to Modem-mode under Linux,
+the application "usb_modeswitch" does this job:
+
+apt-get install usb-modeswitch
+Download "/etc/usb-modeswitch.conf" from the Internet
+
+lsusb |grep Modem
+Bus 001 Device 005: ID 12d1:1003 Huawei Technologies Co., Ltd. E220 HSDPA Modem / E270 HSDPA/HSUPA Modem
+
+in file /etc/usb-modeswitch.conf:
+########################################################
+# Huawei E220 (aka "Vodafone EasyBox II", aka "T-Mobile wnw Box Micro")
+# Huawei E270
+# Huawei E870
+#
+# Two options: 1. removal of "usb-storage"  2. the special control
+# message found by Miroslav Bobovsky
+#
+# Contributor: Hans Kurent, Denis Sutter
+
+DefaultVendor=  0x12d1
+DefaultProduct= 0x1003
+
+# choose one of these:
+
+;DetachStorageOnly=1
+HuaweiMode=1
+_________________________________________________________________________________________
+an other way to configure usb_modeswitch is to edit /lib/udev/rules.d/40-usb_modeswitch.rules
+and create the config in directory /etc/usb_modeswitch.d
+_________________________________________________________________________________________
+
+
+umts-panel is copyright 2010 by Elfriede Apfelkuchen <elfriede@sidux.com>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+
+
+
+
+
+
+import locale
+locale.setlocale(locale.LC_ALL, '')           #set locale from 'LANG'
+Xcodec=locale.getpreferredencoding(False)
+import os
+import sys
+import time
+import string
+import codecs
+import pygtk
+pygtk.require('2.0')
+import gtk
+import pango
+import gobject
+import gc
+
+I18N={}
+
+def i18n(text):
+    if I18N_ready:
+       if I18N.has_key(text): return I18N[text]
+       else: return text
+    else: return text
+
+def load_i18n(filename):
+     #lädt Internationalisierung.moo file
+     ready=False
+     lang=os.getenv('LANG')
+     if not lang: return ready
+     lang2='/usr/share/locale/'+lang[0:2] +'/LC_MESSAGES/'+filename
+     lang3='/usr/share/locale/'+lang[0:5] +'/LC_MESSAGES/'+filename
+     lang='no file'
+     if   os.access(lang3,os.R_OK): lang=lang3
+     elif os.access(lang2,os.R_OK): lang=lang2
+     if lang != 'no file':
+        f=codecs.open(lang,'r','utf_8')
+        if f:
+           lang=f.readlines()
+           f.close()
+           ready=True
+           for z in lang:
+               s=z.replace('\n','').split('=')
+               if s[0]=='': continue
+               I18N[s[0]]=s[1]
+     return ready
+
+
+def first(text):
+    text=text.split('\n') 
+    return text[0]
+
+def read_entry(config,confkey,keydefault):
+    #read a config entry
+    l=len(confkey)
+    antwort=keydefault
+    for line in config:
+        if len(line)<l: continue
+        if line[0:1]=='#': continue
+        if line[0:l]==confkey: antwort=line[l:]   
+    return antwort
+
+def write_entry(config,section,confkey,keyvalue):
+    #write a config entry into section
+    myconfig=[]
+    found=False
+    mysection='[Flag]'
+    l=len(confkey) 
+    print 'write'+section+':',confkey+keyvalue
+    for line in config:
+        if len(line)>2:
+           if line[0]=='[':
+              newsection=line.strip()
+              if mysection==section:
+                 if found==False: 
+                    myconfig.append(confkey+keyvalue)
+                    found=True
+              mysection=newsection
+              myconfig.append(line)
+              continue 
+        if len(line)<l:
+           myconfig.append(line)
+           continue
+        if (line[0:l]==confkey) and (mysection==section):
+           found=True
+           myconfig.append(confkey+keyvalue)
+           continue
+        myconfig.append(line)
+    if found==False: 
+       myconfig.append(confkey+keyvalue)
+    return myconfig
+
+def delete_entry(config,confkey):
+    #delete a config entry
+    myconfig=[]
+    found=False
+    l=len(confkey) 
+    for line in config:
+        if len(line)<l:
+           myconfig.append(line)
+           continue
+        if line[0:l]==confkey:
+           found=True
+           continue
+        myconfig.append(line)
+    return myconfig
+
+def add_DNS(adress):
+    #write DNS adress to /etc/resolv.conf
+    #this function works in future releases of umts-panel
+    addtext='nameserver '+adress 
+    try:
+       pass
+       # f=codecs.open('/etc/umts-resolv.conf','w','utf_8')
+       # f.write('# generated by umts-panel\n'+addtext+'\n')
+       # f.flush()
+       # f.close()
+    except:
+       pass
+
+def read_DNS():
+    try:
+       f=codecs.open('/etc/umts-resolv.conf','r','utf_8')
+       a=f.read()
+       f.close()
+       a=a.split('\n')
+       l=len('nameserver ')
+       text=a[1]
+       return text[l:]
+    except:
+       return ""
+
+
+
+class Tool:
+
+    def delete_event(self, widget, event, data=None):
+        return False
+
+    def destroy(self, widget, data=None):
+        #wird beim beenden ausgeführt
+        gtk.main_quit()
+
+    def goodbye(self,data=None):
+        #Cancel button is clicked
+        if not self.delete_event(self.window,data):
+           gtk.main_quit()
+
+
+    def save(self,data=None):
+        #Appy button is clicked
+
+        if self.lastpage==0:
+           if self.cb_dns.get_active():   #write DNS adress?
+              a=self.e_dns.get_text()
+              a=a.strip()
+              if len(a)>4:
+                 if a[0].isdigit() and ('.' in a):
+                    print "DNS:",a
+                    add_DNS(a)
+                 else:
+                    os.system('rm /etc/umts-resolv.conf 2>/dev/null') 
+           else:
+              os.system('rm /etc/umts-resolv.conf 2>/dev/null') 
+           self.write_config()
+           f=codecs.open('/etc/wvdial.conf','w','utf_8')
+           for line in self.config:
+               text=line+'\n'
+               f.write(text)
+           f.close()
+        if self.lastpage==1: return
+        if self.lastpage==2: 
+           text=self.editor.get_text(self.editor.get_iter_at_offset(0),self.editor.get_iter_at_offset(-1))
+           f=codecs.open('/etc/wvdial.conf','w','utf_8')
+           f.write(text)
+           f.close()
+        #gtk.main_quit()
+        self.goodbye()
+
+
+    def write_config(self):
+        a=self.e_PIN.get_text()
+        a=a.strip()
+        if self.cb_PIN.get_active() and (a!=''):
+           self.config=write_entry(self.config,'[Dialer umts-pin]','Init3 = AT+CPIN=',a)
+        else:
+           self.config=delete_entry(self.config,'Init3 = AT+CPIN=')    
+
+        a=self.e_user.get_text()
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer umts]','Username = ',a)
+
+        a=self.e_password.get_text()
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer umts]','Password = ',a)
+
+        a=self.e_phone.get_text()
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer umts]','Phone = ',a)
+
+        a=self.e_APN.get_text()
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer umts]','Init4 = AT+CGDCONT=1,"IP","',a+'"')
+
+        a=self.e_modem.get_text()
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer Defaults]','Modem = ',a)
+
+        a=self.e_modemtype.get_text() 
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer Defaults]','Modem Type = ',a)
+
+        a=self.e_init1.get_text() 
+        a=a.strip()
+        if a!='':self.config=write_entry(self.config,'[Dialer Defaults]','Init1 = ',a)
+
+        a=self.e_init2.get_text() 
+        a=a.strip()
+        if a!='':self.config=write_entry(self.config,'[Dialer Defaults]','Init2 = ',a)
+
+        a=self.e_baud.get_text() 
+        a=a.strip()
+        self.config=write_entry(self.config,'[Dialer Defaults]','Baud = ',a)
+        a=''
+        for line in self.config:
+            a=a+line+'\n'
+        self.editor.set_text(a)
+        gc.collect()        
+
+
+    def read_config(self,filename):
+        self.config=''
+        f=codecs.open(filename,'r','utf_8')
+        text=f.read()
+        self.editor.set_text(text)
+        f.close()
+        self.config=text.split('\n')
+        a=read_entry(self.config,"Init3 = AT+CPIN=","")
+        a=a.strip()
+        if a!='':
+           self.e_PIN.set_text(a)
+           if a.isdigit(): self.cb_PIN.set_active(True)
+        a=read_entry(self.config,"Username = ","")
+        a=a.strip()
+        if a!='':self.e_user.set_text(a)
+        a=read_entry(self.config,"Password = ","")
+        a=a.strip()
+        if a!='':self.e_password.set_text(a)
+        a=read_entry(self.config,"Phone = ","")
+        a=a.strip()
+        if a!='':self.e_phone.set_text(a)
+        a=read_entry(self.config,'Init4 = AT+CGDCONT=1,"IP","',"")
+        l=len(a) 
+        if l>1: a=a[0:l-1]
+        if a!='':self.e_APN.set_text(a)
+
+        a=read_entry(self.config,"Modem = ","")
+        a=a.strip() 
+        self.e_modem.set_text(a) 
+        a=read_entry(self.config,"Modem Type = ","")
+        a=a.strip() 
+        self.e_modemtype.set_text(a) 
+        a=read_entry(self.config,"Init1 = ","")
+        a=a.strip() 
+        self.e_init1.set_text(a) 
+        a=read_entry(self.config,"Init2 = ","")
+        a=a.strip() 
+        self.e_init2.set_text(a) 
+        a=read_entry(self.config,"Baud = ","")
+        a=a.strip() 
+        self.e_baud.set_text(a) 
+        a=read_DNS()
+        if a!="": 
+           self.e_dns.set_text(a)
+           self.cb_dns.set_active(True)
+        gc.collect()
+
+
+    def search_modem(self,data=None):
+        try:        
+           os.system('touch /etc/wvdial.conf')
+           os.system('wvdialconf /etc/wvdial.conf')
+           f=codecs.open('/etc/wvdial.conf','r','utf_8')
+           text=f.read()
+           f.close()
+           text=text.split('\n')
+        except:
+           return
+        a=read_entry(text,"Modem = ","")
+        a=a.strip() 
+        self.e_modem.set_text(a) 
+        a=read_entry(text,"Modem Type = ","")
+        a=a.strip() 
+        self.e_modemtype.set_text(a) 
+        a=read_entry(text,"Init1 = ","")
+        a=a.strip() 
+        self.e_init1.set_text(a) 
+        a=read_entry(text,"Init2 = ","")
+        a=a.strip() 
+        self.e_init2.set_text(a) 
+        a=read_entry(text,"Baud = ","")
+        a=a.strip() 
+        self.e_baud.set_text(a) 
+        gc.collect()
+
+
+    def new_config(self,data=None):
+        self.read_config('/usr/share/umts-panel/template-wvdial.conf')
+
+
+    def toggle_PIN(self,data=None):
+        s=self.cb_PIN.get_active()
+        if s: self.e_PIN.set_sensitive(1)
+        else: self.e_PIN.set_sensitive(0)
+
+
+    def toggle_dns(self,data=None):
+        s=self.cb_dns.get_active()
+        if s: self.e_dns.set_sensitive(1)
+        else: self.e_dns.set_sensitive(0)
+
+
+    def tabhandler(self,notebook, page, page_num):
+        if type(page) != gobject.GPointer:
+           page.set_property('has-focus',True)
+        if (self.lastpage==0) and (page_num==2): self.write_config()
+        self.lastpage=page_num 
+        if page_num==0: self.apply.show()
+        if page_num==1: self.apply.hide()
+        if page_num==2: self.apply.show()
+        if page_num==3: self.apply.hide()
+
+
+    def row_activate(self, treeview, path, column):
+        APN=first(self.liststore[path][2])
+        user=first(self.liststore[path][3])
+        passwort=first(self.liststore[path][4])
+        dns=first(self.liststore[path][5])
+        if (APN!='-'): self.e_APN.set_text(APN)
+        if (user=='-'): user='' 
+        self.e_user.set_text(user)
+        if (passwort=='-'): passwort=''
+        self.e_password.set_text(passwort)
+        if len(dns)>4:
+           if dns[0].isdigit() and ('.' in dns):
+              self.e_dns.set_text(dns)
+        else: self.e_dns.set_text('autodetect') 
+
+
+    def __init__(self):
+        window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+        self.window=window
+        vbox = gtk.VBox(False, 0)
+        window.add(vbox)
+
+        # When the window is given the "delete_event" signal (this is given
+        # by the window manager, usually by the "close" option, or on the
+        # titlebar), we ask it to call the delete_event () function
+        # as defined above. The data passed to the callback
+        # function is NULL and is ignored in the callback function.
+        window.connect("delete_event", self.delete_event)
+    
+        # Here we connect the "destroy" event to a signal handler.  
+        # This event occurs when we call gtk_widget_destroy() on the window,
+        # or if we return FALSE in the "delete_event" callback.
+        window.connect("destroy", self.destroy)
+    
+        # Sets the border width of the window.
+        window.set_title(i18n('UMTS & GPRS Configuration'))
+        window.set_size_request(400,200)
+        window.resize(800,400)
+
+        vbox2 = gtk.VBox(False, 0)
+        vbox4 = gtk.VBox(False, 0)
+        vbox6 = gtk.VBox(False, 0)
+        vbox8 = gtk.VBox(False, 0)
+
+        hbox=gtk.HBox(False,5)
+        label=gtk.Label('    1.')
+        button=gtk.Button(i18n('new configuration file'))
+        button.connect_object("clicked", self.new_config,None)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(button,False,False,0)
+        label=gtk.Label('    2.')
+        button=gtk.Button(i18n('search modem'))
+        button.connect_object("clicked", self.search_modem,None)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(button,False,False,0)
+        vbox2.pack_start(hbox,False,False,0) 
+        
+        hboxX=gtk.HBox(False,5)
+        labelX=gtk.Label(' ')
+        frame = gtk.Frame(i18n("Modem"))
+        vbox21=gtk.VBox(False,5) 
+        hbox=gtk.HBox(False,5)
+        label=gtk.Label('Modem =')
+        self.e_modem=gtk.Entry(max=0)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(self.e_modem,True,True,0)
+        vbox21.pack_start(hbox,False,False,0) 
+
+        hbox=gtk.HBox(False,5)
+        label=gtk.Label('Modem Type =')
+        self.e_modemtype=gtk.Entry(max=0)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(self.e_modemtype,True,True,0)
+        vbox21.pack_start(hbox,False,False,0) 
+
+        hbox=gtk.HBox(False,5)
+        label=gtk.Label('Baud =')
+        self.e_baud=gtk.Entry(max=0)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(self.e_baud,True,True,0)
+        vbox21.pack_start(hbox,False,False,0) 
+
+        hbox=gtk.HBox(False,5)
+        label=gtk.Label('Init1 =')
+        self.e_init1=gtk.Entry(max=0)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(self.e_init1,True,True,0)
+        vbox21.pack_start(hbox,False,False,0) 
+
+        hbox=gtk.HBox(False,5)
+        label=gtk.Label('Init2 =')
+        self.e_init2=gtk.Entry(max=0)
+        hbox.pack_start(label,False,False,0)
+        hbox.pack_start(self.e_init2,True,True,0)
+        vbox21.pack_start(hbox,False,False,0) 
+        vbox21.set_border_width(10)
+        frame.set_border_width(10)
+        frame.add(vbox21)
+        hboxX.pack_start(frame,False,False,0)
+ 
+        frame = gtk.Frame(i18n("Account"))
+        vbox22=gtk.VBox(False,5) 
+
+        zbox=gtk.HBox(False,5)
+        self.cb_PIN=gtk.CheckButton('PIN =')
+        self.e_PIN=gtk.Entry(max=0)
+        self.e_PIN.set_sensitive(0)
+        zbox.pack_start(self.cb_PIN,False,False,0)
+        zbox.pack_start(self.e_PIN,True,True,0)
+        vbox22.pack_start(zbox,False,False,0) 
+
+        zbox=gtk.HBox(False,5)
+        label=gtk.Label('Username =')
+        self.e_user=gtk.Entry(max=0)
+        zbox.pack_start(label,False,False,0)
+        zbox.pack_start(self.e_user,True,True,0)
+        vbox22.pack_start(zbox,False,False,0) 
+
+        zbox=gtk.HBox(False,5)
+        label=gtk.Label('Password =')
+        self.e_password=gtk.Entry(max=0)
+        zbox.pack_start(label,False,False,0)
+        zbox.pack_start(self.e_password,True,True,0)
+        vbox22.pack_start(zbox,False,False,0) 
+
+        zbox=gtk.HBox(False,5)
+        label=gtk.Label('Phone =')
+        self.e_phone=gtk.Entry(max=0)
+        self.e_phone.set_text('*99#')
+        zbox.pack_start(label,False,False,0)
+        zbox.pack_start(self.e_phone,True,True,0)
+        vbox22.pack_start(zbox,False,False,0) 
+
+        zbox=gtk.HBox(False,5)
+        label=gtk.Label('APN =')
+        self.e_APN=gtk.Entry(max=0)
+        zbox.pack_start(label,False,False,0)
+        zbox.pack_start(self.e_APN,True,True,0)
+        vbox22.pack_start(zbox,False,False,0) 
+
+        zbox=gtk.HBox(False,5)
+        self.dnshide=zbox
+        self.cb_dns=gtk.CheckButton('DNS:')
+        self.e_dns=gtk.Entry(max=0)
+        self.e_dns.set_text('autodetect') 
+        self.e_dns.set_sensitive(0)
+        zbox.pack_start(self.cb_dns,False,False,0)
+        zbox.pack_start(self.e_dns,True,True,0)
+        vbox22.pack_start(zbox,False,False,0) 
+
+        vbox22.set_border_width(10)
+        frame.set_border_width(10)
+        frame.add(vbox22)
+        hboxX.pack_start(frame,True,True,0) 
+        vbox2.pack_start(hboxX,False,False,0)
+        self.cb_PIN.connect_object("toggled",self.toggle_PIN,None)
+        self.cb_dns.connect_object("toggled",self.toggle_dns,None)
+
+        self.liststore=gtk.ListStore(str,str,str,str,str,str,str,str)
+        self.treeview=gtk.TreeView()
+        self.treeview.set_headers_visible(True)
+        self.treeview.set_model(self.liststore) 
+        self.treeview.set_property('rules-hint',True)
+        self.treeview.set_property('enable-grid-lines',True)
+        self.treeview.connect('row-activated', self.row_activate)
+        self.cell1 = gtk.CellRendererText()
+        self.cell2 = gtk.CellRendererText()
+        self.cell3 = gtk.CellRendererText()
+        self.cell4 = gtk.CellRendererText()
+        self.cell5 = gtk.CellRendererText()
+        self.cell6 = gtk.CellRendererText()
+        #self.cell7 = gtk.CellRendererText()
+        self.cell8 = gtk.CellRendererText()
+        self.spalte1 = gtk.TreeViewColumn(i18n('Country'))
+        self.spalte2 = gtk.TreeViewColumn(i18n('Network'))
+        self.spalte3 = gtk.TreeViewColumn(i18n('APN'))
+        self.spalte4 = gtk.TreeViewColumn(i18n('Username'))
+        self.spalte5 = gtk.TreeViewColumn(i18n('Password'))
+        self.spalte6 = gtk.TreeViewColumn(i18n('DNS'))
+        #self.spalte7 = gtk.TreeViewColumn(i18n('SMTP-Server'))
+        self.spalte8 = gtk.TreeViewColumn(i18n('Notes'))
+        self.treeview.append_column(self.spalte1)
+        self.treeview.append_column(self.spalte2)
+        self.treeview.append_column(self.spalte3)
+        self.treeview.append_column(self.spalte4)
+        self.treeview.append_column(self.spalte5)
+        self.treeview.append_column(self.spalte6)
+        #self.treeview.append_column(self.spalte7)
+        self.treeview.append_column(self.spalte8)
+        self.spalte1.pack_start(self.cell1,True)
+        self.spalte2.pack_start(self.cell2,True)
+        self.spalte3.pack_start(self.cell3,True)
+        self.spalte4.pack_start(self.cell4,True)
+        self.spalte5.pack_start(self.cell5,True)
+        self.spalte6.pack_start(self.cell6,True)
+        #self.spalte7.pack_start(self.cell7,True)
+        self.spalte8.pack_start(self.cell8,True)
+        self.spalte1.set_attributes(self.cell1, text=0)
+        self.spalte2.set_attributes(self.cell2, text=1)
+        self.spalte3.set_attributes(self.cell3, text=2)
+        self.spalte4.set_attributes(self.cell4, text=3)
+        self.spalte5.set_attributes(self.cell5, text=4)
+        self.spalte6.set_attributes(self.cell6, text=5)
+        #self.spalte7.set_attributes(self.cell7, text=6)
+        self.spalte8.set_attributes(self.cell8, text=7)
+        sw = gtk.ScrolledWindow()
+        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        sw.add(self.treeview)
+        vbox4.pack_start(sw , True, True, 0)
+        try: 
+           f=codecs.open('/usr/share/umts-panel/Providers.csv','r','utf_8')
+           line=f.readline()
+           while True: 
+                 line=f.readline()
+                 if not line: break
+                 lin=line.replace('\n','')
+                 lin=lin.replace('<br>','\n')
+                 lin=lin.split(';')
+                 while len(lin)<8: 
+                       lin.append('-')
+                 self.liststore.append([ lin[0],lin[1],lin[2],lin[3],lin[4],lin[5],lin[6],lin[7] ])
+           f.close()
+        except:
+           pass
+
+        # the following code is ugly, because it read a buggish incomplete xml-database.
+        # umts-panel can read provider database from package mobile-broadband-provider-info
+        # it have to be said the xml file is buggish and incomplete so the data is append 
+        # at the End of the Providerdatabase like google do. google shows best hits first ;-)
+        try: 
+           f=codecs.open('/usr/share/mobile-broadband-provider-info/serviceproviders.xml','r','utf_8')
+           while True: 
+                 line=f.readline()
+                 if not line: break
+                 if '<serviceproviders format="2.0">' in line: break
+           country='nowhere'
+           gflag=0
+           pflag=0
+           apnnr=0
+           apnvalue=''
+           while True: 
+                 line=f.readline()
+                 if not line: break
+                 if len(line)>4:
+                    if line[0:4]=='<!--':
+                       country=line[4:].replace(" -->\n","").replace(", United Republic of","").replace(", Republic of","")
+                 if '<country code="' in line:
+                    countrycode=line.replace('<country code="','').replace('">\n','')
+                 if '<provider>' in line:
+                    gflag=0
+                    pflag=0
+                    apnvalue=''
+                    while not('<name>' in line):
+                          if not line: break
+                          line=f.readline()
+                    l=len(line)
+                    pos1=line.find('<name>')
+                    provider=line[pos1+6:l-8].replace('&amp;','&')
+                    continue 
+                 if '<gsm>' in line:
+                    apnnr=0
+                    gflag=1
+                    pflag=1
+                    continue
+                 if '</gsm>' in line:
+                    gflag=0
+                    continue
+                 if gflag==1:
+                    if '<apn value="' in line:
+                       apnnr=apnnr+1
+                       if apnnr>1:
+                          if pflag==1: self.liststore.append(['['+countrycode+']'+country,provider,apnvalue,apnuser,apnpass,apndns,'-',apnname])
+                       pos1=line.find('<apn value="')
+                       apnvalue=''
+                       if pos1>0: apnvalue=line[pos1+12:].replace('">\n','').replace('"/>\n','').replace('" />\n','').replace('"></apn>\n','')
+                       apnname='-'
+                       apnuser='-'
+                       apnpass='-'
+                       apndns=''
+                       continue
+                    if '<name>' in line:
+                       pos1=line.find('<name>')
+                       if pos1>0: apnname=line[pos1+6:].replace('</name>\n','')
+                       continue
+                    if '<username>' in line:
+                       pos1=line.find('<username>')
+                       if pos1>0: apnuser=line[pos1+10:].replace('</username>\n','')
+                       continue
+                    if '<password>' in line:
+                       pos1=line.find('<password>')
+                       if pos1>0: apnpass=line[pos1+10:].replace('</password>\n','')
+                       continue
+                    if '<dns>' in line:
+                       pos1=line.find('<dns>')
+                       if pos1>0: apndns=line[pos1+5:].replace('</dns>\n','')
+                       continue
+                 if '</provider>' in line: 
+                    if pflag==1: self.liststore.append(['['+countrycode+']'+country,provider,apnvalue,apnuser,apnpass,apndns,'-',apnname])
+                    gflag=0
+                    pflag=0
+           f.close()
+        except:
+           pass     #End of ugly code...
+
+        view=gtk.TextView()
+        view.set_editable(True)
+        view.set_cursor_visible(True)
+        view.set_pixels_above_lines(0)
+        view.set_pixels_below_lines(0)
+        view.set_pixels_inside_wrap(0)
+        view.set_wrap_mode(gtk.WRAP_NONE)
+        self.view1=view
+        sw = gtk.ScrolledWindow()
+        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        sw.add(view)
+        self.editor=view.get_buffer()
+        vbox6.pack_start(sw , True, True, 0)
+
+        view=gtk.TextView()
+        view.set_editable(False)
+        view.set_cursor_visible(False)
+        view.set_pixels_above_lines(0)
+        view.set_pixels_below_lines(0)
+        view.set_pixels_inside_wrap(0)
+        view.set_wrap_mode(gtk.WRAP_NONE)
+        self.view2=view
+        sw = gtk.ScrolledWindow()
+        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        sw.add(view)
+        self.help=view.get_buffer()
+        vbox8.pack_start(sw , True, True, 0)
+        self.help.set_text(helpfunctiontext)
+
+        notebook = gtk.Notebook()
+        notebook.set_tab_pos(gtk.POS_TOP)
+        tab_label1=gtk.Label(i18n('General'))
+        tab_label2=gtk.Label(i18n('Providers'))
+        tab_label3=gtk.Label('/etc/wvdial.conf')
+        tab_label4=gtk.Label(i18n('Help'))
+        notebook.append_page(vbox2,tab_label1) 
+        notebook.append_page(vbox4,tab_label2) 
+        notebook.append_page(vbox6,tab_label3) 
+        notebook.append_page(vbox8,tab_label4) 
+        self.lastpage=0
+        notebook.connect("switch-page",self.tabhandler)
+        vbox.pack_start(notebook, True, True, 0)
+
+        hbox = gtk.HBox(False, 0)
+        button1=gtk.Button(stock='gtk-apply')
+        self.apply=button1
+        hiddenlabel=gtk.Label(' ')
+        button2=gtk.Button(stock='gtk-cancel')
+        hbox.pack_start(button1,False,False,0)
+        hbox.pack_start(hiddenlabel,True,True,0)
+        hbox.pack_start(button2,False,False,0)
+        button1.connect_object("clicked", self.save,None)
+        button2.connect_object("clicked", self.goodbye,None)
+        vbox.pack_end(hbox, False, False, 5)
+        window.set_border_width(2)
+        os.system( 'touch /etc/wvdial.conf')
+        self.read_config('/etc/wvdial.conf')
+        window.show_all()
+        self.dnshide.hide()  #hiding DNS settings (reserved for future versions of umts-panel)        
+        userid=os.getuid()
+        if userid!=0:
+               dialog = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_OK, "ERROR: not root!")
+               result = dialog.run()
+               dialog.destroy()
+               sys.exit(1)
+
+
+    def main(self):
+        # All PyGTK applications must have a gtk.main(). Control ends here
+        # and waits for an event to occur (like a key press or mouse event).
+        gtk.main()
+
+
+
+# If the program is run directly or passed as an argument to the python
+# interpreter then create a HelloWorld instance and show it
+if __name__ == "__main__":
+     codec1=Xcodec.lower().replace('iso-','iso').replace('-','_')
+     if 'ansi' in codec1: codec1='iso8859_1'  #Ansi is shit...
+     I18N_ready = load_i18n('umts-panel-configure.moo')
+     GPLv3isCOOL = Tool()
+     GPLv3isCOOL.main()
+
+
+

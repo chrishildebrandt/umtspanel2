@@ -1,0 +1,53 @@
+This work was packaged for Debian by:
+
+    Chris Hildebrandt <slam@aptosid.com>  Sat, 20 Nov 2010 13:10:00 +0100
+
+It was downloaded from https://lab.aptosid.com/svn/lxde/umts-panel-experimental/trunk
+
+Files umts-panel, umts-panel-configure
+Copyright: © 2010 Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>
+License: GPLv3
+
+Files README, umts-panel.desktop
+Copyright: © 2010 Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>
+License: GPLv3
+
+Files locale/de/umts-panel.configure.moo
+Copyright: © 2010 Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>
+License: GPLv3
+
+Files locale/it/umts-panel.configure.moo
+Copyright: © 2010 Andrea Florio <andrea@opensuse.org>
+License: GPLv3
+
+Files locale/ru/umts-panel.configure.moo
+Copyright: © 2010 Roland Engert <roen@sidux.com>
+License: GPLv3
+
+Files template-wvdial.conf,Providers.csv
+Copyright: © 2010 Chris Hildebrandt <slam@aptosid.com>
+License: GPLv3
+
+License:
+    These programs are free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    These programs are distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+On Debian systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL-3'.
+
+The Debian packaging is:
+
+    Copyright © 2010 Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>
+
+and is licensed under the GPL version 3,
+see `/usr/share/common-licenses/GPL-3'.

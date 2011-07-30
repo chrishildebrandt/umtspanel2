@@ -1,0 +1,15 @@
+UMTS & GPRS Configuration=Configurazione UMTS & GPRS
+new configuration file=Nuovo file di configurazione
+search modem=Ricerca Modem
+Modem=Modem
+Account=Account
+Country=Nazione
+Network=Rete
+APN=APN
+Username=Username
+Password=Password
+DNS=DNS
+SMTP-Server=SMTP-Server
+Notes=Note
+General=Generale
+Providers=Provider

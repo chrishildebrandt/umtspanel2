@@ -1,0 +1,9 @@
+umts-panel usr/bin/
+umts-panel-configure usr/bin/
+umts-panel.desktop usr/share/applications/
+template-wvdial.conf usr/share/umts-panel/
+README usr/share/doc/umts-panel2/
+Providers.csv usr/share/umts-panel/
+locale/de/umts-panel-configure.moo usr/share/locale/de/LC_MESSAGES/
+locale/it/umts-panel-configure.moo usr/share/locale/it/LC_MESSAGES/
+locale/ru/umts-panel-configure.moo usr/share/locale/ru/LC_MESSAGES/

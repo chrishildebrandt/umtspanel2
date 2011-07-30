@@ -1,0 +1,13 @@
+
+"wvdial umts-pin &"               sends the PIN, this unlocks the Modem
+
+"wvdial umts &"                          starts the internet connection
+
+"killall --signal INT  /usr/bin/wvdial"   stops the internet connection
+
+
+if you want to use these commands, 
+you have to start umts-panel -> Menu -> Preferences
+first. That generates a working /etc/wvdial.conf.
+
+Elfriede Apfelkuchen <elfriede@sidux.com>

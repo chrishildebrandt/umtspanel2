@@ -1,0 +1,129 @@
+umts-panel2 (0.3.0.4) unstable; urgency=low
+
+  * update to latest Providers.cvs
+  * email-address changed slam@aptosid.com
+  * prepare proper /debian files for packaging and release
+
+ -- Chris Hildebrandt <slam@aptosid.com>  Sat, 20 Nov 2010 13:10:00 +0100
+
+umts-panel2 (0.3.0.3) unstable; urgency=low
+
+  * email-address changed elfriede-apfelkuchen@gmx.de
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sun, 12 Sep 2010 13:10:34 +0200
+
+umts-panel2 (0.3.0.2) unstable; urgency=low
+
+  * version number added
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sun, 20 Jun 2010 16:46:17 +0200
+
+umts-panel2 (0.3.0.1) unstable; urgency=low
+
+  * removing of umts-console make everything easyer
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sat, 15 May 2010 17:27:47 +0200
+
+umts-panel (0.2.4.1) unstable; urgency=low
+
+  * umts-panel support package mobile-broadband-provider-info
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Fri, 14 May 2010 18:07:26 +0200
+
+umts-panel (0.2.3) unstable; urgency=low
+
+  * DNS settings are hidden now...
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Tue, 04 May 2010 20:04:14 +0200
+
+umts-panel (0.2.2) unstable; urgency=low
+
+  * sending Signal INT (CTRL+C) for stopping wvdial.
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Wed, 10 Mar 2010 10:22:04 +0100
+
+umts-panel (0.2.1) unstable; urgency=low
+
+  * autostart for kde4 in ~/.kde4/share/autostart and ~/.kde/Autostart
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Wed, 24 Feb 2010 10:08:58 +0100
+
+umts-panel (0.2.0) unstable; urgency=low
+
+  * security fixes
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Tue, 23 Feb 2010 13:40:57 +0100
+
+umts-panel (0.1.9) unstable; urgency=low
+
+  * added a man page for umts-console, better README
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Tue, 16 Feb 2010 20:01:29 +0100
+
+umts-panel (0.1.8) unstable; urgency=low
+
+  * main_iteration read now all events
+  * hopefully we have correct support for xdg-su now.
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Tue, 16 Feb 2010 19:09:47 +0100
+
+umts-panel (0.1.7) unstable; urgency=low
+
+  * support for su-to-root, gksu, xdg-su, kdesu added
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sun, 14 Feb 2010 17:54:56 +0100
+
+umts-panel (0.1.6) unstable; urgency=low
+
+  * fixing again the same bug, i must remove umts-panel-configure.desktop
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sat, 13 Feb 2010 20:12:31 +0100
+
+umts-panel (0.1.5) unstable; urgency=low
+
+  * bugfix mkdir .config/autostart
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sat, 13 Feb 2010 18:55:46 +0100
+
+umts-panel (0.1.4) unstable; urgency=low
+
+  * save window size bug on apply is bugfixed
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sat, 13 Feb 2010 14:17:52 +0100
+
+umts-panel (0.1.3) unstable; urgency=low
+
+  * fix the forget PIN bug
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sat, 13 Feb 2010 08:43:38 +0100
+
+umts-panel (0.1.2) unstable; urgency=low
+
+  * finetuning debian directory
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Fri, 12 Feb 2010 14:59:52 +0100
+
+umts-panel (0.1.1) unstable; urgency=low
+
+  * Provider data is in umts-panel-data
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Thu, 11 Feb 2010 20:01:37 +0100
+
+umts-panel (0.1.0) unstable; urgency=low
+
+  [ Elfriede Apfelkuchen ]
+  * first version of umts-panel, a frontend for wvdial
+
+  [ Roland Engert ]
+  * add ru-trans
+
+  [ Elfriede Apfelkuchen ]
+  * added README files and Help Window.
+  * added posibility for a manual DNS entry.
+  * fixed a security hole in umts-console.c.
+  * reoganisation of locale folder for packaging.
+  * created working debian folder for packaging.
+  * input data from provider databank
+  * added logging Window for debugging
+
+ -- Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>  Sun, 07 Feb 2010 06:49:01 +0100

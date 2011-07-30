@@ -1,0 +1,241 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+#**************************************************************************
+#                                                                         *
+#   Copyright (c) 2010 by Elfriede Apfelkuchen                            *
+#                                                                         *
+#   This program is free software: you can redistribute it and/or modify  *
+#   it under the terms of the GNU General Public License as published by  *
+#   the Free Software Foundation, either version 3 of the License, or     *
+#   (at your option) any later version.                                   *
+#                                                                         *
+#   This program is distributed in the hope that it will be useful,       *
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+#   GNU General Public License for more details.                          *
+#                                                                         *
+#   You should have received a copy of the GNU General Public License     *
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+#                                                                         *
+#**************************************************************************
+import gtk
+import os
+import gc
+import gobject
+import time
+import codecs
+
+counter=0
+firstrun=True
+seticon=False
+state=False
+icon = gtk.status_icon_new_from_stock(gtk.STOCK_DISCONNECT)
+home = os.getenv('HOME')
+window=None
+buffer=None
+sw=None
+view=None
+oldtext=''
+os.system('/usr/sbin/usb_modeswitch')
+
+
+def create_log_view(data=None):
+    global window,buffer,sw,view,oldtext
+    if buffer!=None: 
+       window.show()
+       window.present()
+       return
+    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    window.set_title('umts-panel log')
+    window.set_size_request(600,400)
+    window.set_position(gtk.WIN_POS_CENTER_ALWAYS)
+    window.connect("destroy", destroy_log_view)
+    view=gtk.TextView()
+    view.set_editable(False)
+    view.set_cursor_visible(False)
+    view.set_pixels_above_lines(0)
+    view.set_pixels_below_lines(0)
+    view.set_pixels_inside_wrap(0)
+    view.set_wrap_mode(gtk.WRAP_NONE)
+    sw = gtk.ScrolledWindow()
+    sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+    sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+    sw.add(view)
+    oldtext='sidux'
+    buffer=view.get_buffer()
+    window.add(sw) 
+    window.show_all()
+    
+
+def destroy_log_view(widget, data=None):
+    global window,buffer,sw,view
+    buffer=None
+    window.destroy()
+    window=None
+    sw=None
+    view=None
+
+
+def quit(data=None):
+    global source_id
+    gobject.source_remove(source_id)
+    gtk.main_quit()
+
+
+def preferences(data=None):
+    if os.access('/usr/bin/su-to-root',os.R_OK):
+       os.system('su-to-root -X -c "/usr/bin/umts-panel-configure '+home+'" &')
+       return
+    if os.access('/usr/bin/xdg-su',os.R_OK):
+       os.system('xdg-su -c "/usr/bin/umts-panel-configure '+home+'" &')
+       return
+    if os.access('/usr/bin/gksu',os.R_OK):
+       os.system('gksu /usr/bin/umts-panel-configure '+home+' &')
+       return
+    if os.access('/usr/lib/kde4/libexec/kdesu',os.R_OK):
+       os.system('/usr/lib/kde4/libexec/kdesu /usr/bin/umts-panel-configure '+home+' &')
+       return
+    os.system('kdesu /usr/bin/umts-panel-configure '+home+' &')
+
+
+def connect(data=None):
+    global state,firstrun,icon,seticon,buffer,oldtext
+    icon.set_from_stock(gtk.STOCK_DIALOG_AUTHENTICATION)
+    if buffer!=None: buffer.set_text('please wait...')
+    while gtk.events_pending(): gtk.main_iteration()
+    seticon=True
+    if firstrun==True: sendPIN() 
+    print 'connect, view ~/.umts-panel.log' 
+    oldtext='Elfriede Apfelkuchen <elfriede@sidux.com>'
+    os.system('/usr/bin/wvdial --config=/etc/wvdial.conf umts  >~/.umts-panel.log  2>&1 &')
+
+def disconnect(data=None):
+    global state
+    print 'disconnect'
+    os.system('/usr/bin/killall --signal INT  /usr/bin/wvdial &')
+
+
+def sendPIN(data=None):
+    global state,firstrun
+    print 'send PIN'
+    os.system('/usr/bin/wvdial --config=/etc/wvdial.conf umts-pin &')
+    if firstrun==True: time.sleep(9)
+    firstrun=False
+
+
+def toggle_autostart(data=None):
+    if os.access(home+'/.config/autostart/umts-panel.desktop',os.R_OK):
+       os.system('rm '+home+'/.config/autostart/umts-panel.desktop')
+       os.system('rm '+home+'/.kde4/share/autostart/umts-panel.desktop')
+       os.system('rm '+home+'/.kde/Autostart/umts-panel.desktop')
+    else:
+       os.system('mkdir -p '+home+'/.config/autostart 2>/dev/null')
+       os.system('cp /usr/share/applications/umts-panel.desktop '+home+'/.config/autostart')
+       os.system('mkdir -p '+home+'/.kde4/share/autostart 2>/dev/null')
+       os.system('cp /usr/share/applications/umts-panel.desktop '+home+'/.kde4/share/autostart')
+       os.system('mkdir -p '+home+'/.kde/Autostart 2>/dev/null')
+       os.system('cp /usr/share/applications/umts-panel.desktop '+home+'/.kde/Autostart')
+
+
+def make_menu(icon2,event_button, event_time):
+    # right click on icon in panel start menu
+    menu = gtk.Menu()
+    item = gtk.ImageMenuItem(stock_id=gtk.STOCK_PREFERENCES)
+    item.show()
+    item.connect("activate",preferences)
+    menu.append(item)
+    item=gtk.SeparatorMenuItem()
+    item.show()
+    menu.append(item)
+    item=gtk.CheckMenuItem("autostart")
+    if os.access(home+'/.config/autostart/umts-panel.desktop',os.R_OK):
+       item.set_active(True)
+    item.connect("toggled",toggle_autostart)
+    item.show()
+    menu.append(item)
+    item=gtk.SeparatorMenuItem()
+    item.show()
+    menu.append(item)
+    item = gtk.MenuItem('PIN')
+    item.show()
+    item.connect("activate",sendPIN)
+    menu.append(item)
+    item = gtk.ImageMenuItem(stock_id=gtk.STOCK_INFO)
+    item.show()
+    item.connect("activate",create_log_view)
+    menu.append(item)
+    item = gtk.ImageMenuItem(stock_id=gtk.STOCK_CONNECT)
+    item.show()
+    item.connect("activate",connect)
+    menu.append(item)
+    item = gtk.ImageMenuItem(stock_id=gtk.STOCK_DISCONNECT)
+    item.show()
+    item.connect("activate",disconnect)
+    menu.append(item)
+    item=gtk.SeparatorMenuItem()
+    item.show()
+    menu.append(item)
+    item = gtk.ImageMenuItem(stock_id=gtk.STOCK_QUIT)
+    item.show()
+    item.connect("activate",quit)
+    menu.append(item)
+    menu.popup(None, None,gtk.status_icon_position_menu, event_button, event_time, icon)
+
+
+def on_left_click(icon2):
+    global state
+    # left click on icon in panel 
+    if state:
+       disconnect()
+    else:
+       connect()
+
+
+def test():
+    global counter,state,icon,seticon,buffer,oldtext
+    counter+=1
+    if counter>30:
+       counter=0
+       print "Garbage Collection"
+       gc.collect()
+    p = os.popen('ps -eo cmd')
+    newstate=False
+    while True: 
+          line=p.readline()
+          if not line: break
+          if '/usr/bin/wvdial' in line: newstate=True
+    p.close()
+    if (newstate!=state) or seticon:
+       seticon=False
+       state=newstate
+       if state==True:
+          icon.set_from_stock(gtk.STOCK_CONNECT)
+       else:   
+          icon.set_from_stock(gtk.STOCK_DISCONNECT)
+    if buffer!=None:
+       try:
+            
+          f=codecs.open(home+'/.umts-panel.log','r','utf_8')
+          text=f.read()
+          f.close()
+          if text != oldtext: buffer.set_text(text)
+          oldtext=text
+       except:
+          pass
+    return True
+
+
+if __name__ == '__main__':
+    global source_id
+    try:
+        f=file('/etc/wvdial.conf','r')
+        text=f.read()
+        f.close()
+        if not ('[Dialer umts]' in text): preferences()
+        del text
+    except:
+        preferences()
+    icon.connect('activate', on_left_click)
+    icon.connect('popup-menu', make_menu)
+    source_id = gobject.timeout_add(1000, test)
+    gtk.main()
