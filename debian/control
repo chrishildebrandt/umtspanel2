@@ -1,11 +1,11 @@
 Source: umts-panel2
 Section: net
 Priority: extra
-Maintainer: Chris Hildebrandt <slam@aptosid.com>, Elfriede Apfelkuchen <elfriede-apfelkuchen@gmx.de>
+Maintainer: Chris Hildebrandt <slam@aptosid.com>
 Build-Depends: debhelper (>= 7.9.3)
 Standards-Version: 3.9.1
-Vcs-Svn: svn://lab.aptosid.com/svn/lxde/umts-panel-experimental/trunk
-Vcs-Browser: http://lab.aptosid.com/lxde/browser/umts-panel-experimental/trunk
+Vcs-Svn: svn://lab.aptosid.com/svn/lxde/umts-panel2/trunk
+Vcs-Browser: http://lab.aptosid.com/lxde/browser/umts-panel2/trunk
 
 Package: umts-panel2
 Architecture: all
